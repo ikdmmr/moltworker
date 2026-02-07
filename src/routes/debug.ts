@@ -433,4 +433,42 @@ debug.get('/ws-check', async (c) => {
   }
 });
 
+// POST /debug/cleanup-processes - Kill all processes except the gateway
+debug.post('/cleanup-processes', async (c) => {
+  const sandbox = c.get('sandbox');
+  try {
+    const processes = await sandbox.listProcesses();
+    const killed: string[] = [];
+    const failed: string[] = [];
+
+    for (const p of processes) {
+      const isGateway =
+        p.command.includes('start-openclaw.sh') ||
+        p.command.includes('openclaw gateway') ||
+        p.command.includes('start-moltbot.sh') ||
+        p.command.includes('clawdbot gateway');
+
+      if (!isGateway && (p.status === 'running' || p.status === 'starting')) {
+        try {
+          await p.kill();
+          killed.push(`${p.id}: ${p.command}`);
+        } catch (e) {
+          failed.push(`${p.id}: ${e instanceof Error ? e.message : 'unknown'}`);
+        }
+      }
+    }
+
+    return c.json({
+      success: true,
+      total: processes.length,
+      killed_count: killed.length,
+      killed,
+      failed,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
 export { debug };
