@@ -295,10 +295,39 @@ rm -f "$CONFIG_DIR/gateway.lock" 2>/dev/null || true
 
 echo "Dev mode: ${OPENCLAW_DEV_MODE:-false}"
 
+# ============================================================
+# START AUTO-APPROVER (Background)
+# ============================================================
+cat << 'EOFAPPROVE' > /usr/local/bin/auto-approve-devices.sh
+#!/bin/bash
+echo "Auto-approver started"
+while true; do
+    # List pending devices
+    PENDING=$(openclaw devices list --json --url ws://localhost:18789 2>/dev/null | node -e "
+        const fs = require('fs');
+        try {
+            const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+            const ids = (data.pending || []).map(d => d.requestId);
+            console.log(ids.join(' '));
+        } catch (e) {}
+    ")
+
+    for id in $PENDING; do
+        if [ -n "$id" ]; then
+            echo "Auto-approving device: $id"
+            openclaw devices approve "$id" --url ws://localhost:18789 > /dev/null 2>&1
+        fi
+    done
+    sleep 5
+done
+EOFAPPROVE
+chmod +x /usr/local/bin/auto-approve-devices.sh
+/usr/local/bin/auto-approve-devices.sh &
+
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
     echo "Starting gateway with token auth..."
     exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind lan --token "$OPENCLAW_GATEWAY_TOKEN"
 else
-    echo "Starting gateway with device pairing (no token)..."
+    echo "Starting gateway in pairing mode with auto-approver..."
     exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind lan
 fi
