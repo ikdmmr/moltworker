@@ -302,9 +302,6 @@ echo "Dev mode: ${OPENCLAW_DEV_MODE:-false}"
 # ============================================================
 # START AUTO-APPROVER (Background)
 # ============================================================
-# ============================================================
-# START AUTO-APPROVER (Background)
-# ============================================================
 # Use a simple background subshell loop to avoid creating extra files/permissions issues
 (
     echo "Auto-approver started in background"
