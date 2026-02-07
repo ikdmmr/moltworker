@@ -182,6 +182,10 @@ config.gateway.trustedProxies = ['10.1.0.0'];
 if (process.env.OPENCLAW_GATEWAY_TOKEN) {
     config.gateway.auth = config.gateway.auth || {};
     config.gateway.auth.token = process.env.OPENCLAW_GATEWAY_TOKEN;
+} else if (config.gateway.auth) {
+    // Explicitly remove token if env var is missing to allow pairing mode
+    delete config.gateway.auth.token;
+    console.log('Removed old gateway token from config to enable pairing mode');
 }
 
 if (process.env.OPENCLAW_DEV_MODE === 'true') {
@@ -298,7 +302,10 @@ echo "Dev mode: ${OPENCLAW_DEV_MODE:-false}"
 # ============================================================
 # START AUTO-APPROVER (Background)
 # ============================================================
-cat << 'EOFAPPROVE' > /usr/local/bin/auto-approve-devices.sh
+if pgrep -f "auto-approve-devices.sh" > /dev/null 2>&1; then
+    echo "Auto-approver is already running."
+else
+    cat << 'EOFAPPROVE' > /usr/local/bin/auto-approve-devices.sh
 #!/bin/bash
 echo "Auto-approver started"
 while true; do
@@ -321,8 +328,9 @@ while true; do
     sleep 5
 done
 EOFAPPROVE
-chmod +x /usr/local/bin/auto-approve-devices.sh
-/usr/local/bin/auto-approve-devices.sh &
+    chmod +x /usr/local/bin/auto-approve-devices.sh
+    /usr/local/bin/auto-approve-devices.sh &
+fi
 
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
     echo "Starting gateway with token auth..."
