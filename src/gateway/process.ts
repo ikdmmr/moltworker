@@ -31,9 +31,15 @@ export async function findExistingMoltbotProcess(sandbox: Sandbox): Promise<Proc
 
       if (isGatewayProcess && !isCliCommand) {
         if (proc.status === 'starting' || proc.status === 'running') {
+          console.log(`[Process] Found active gateway: ${proc.id} (${proc.status}) - ${proc.command}`);
           return proc;
         }
       }
+    }
+
+    // Safety check: if there are way too many processes, log a warning
+    if (processes.length > 50) {
+      console.warn(`[Process] CRITICAL: High process count detected: ${processes.length}. Sandbox may be overloaded.`);
     }
   } catch (e) {
     console.log('Could not list processes:', e);
@@ -76,16 +82,40 @@ export async function ensureMoltbotGateway(sandbox: Sandbox, env: MoltbotEnv): P
       await existingProcess.waitForPort(MOLTBOT_PORT, { mode: 'tcp', timeout: STARTUP_TIMEOUT_MS });
       console.log('Gateway is reachable');
       return existingProcess;
-      // eslint-disable-next-line no-unused-vars
     } catch (_e) {
       // Timeout waiting for port - process is likely dead or stuck, kill and restart
-      console.log('Existing process not reachable after full timeout, killing and restarting...');
+      console.log('Existing process not reachable after timeout, killing...');
       try {
         await existingProcess.kill();
+        // Give it a moment to die
+        await new Promise(r => setTimeout(r, 1000));
       } catch (killError) {
         console.log('Failed to kill process:', killError);
       }
     }
+  }
+
+  // Final safety check: if we're about to start a NEW process but there are already
+  // many running, try a more aggressive cleanup of any "stuck" processes
+  try {
+    const processes = await sandbox.listProcesses();
+    if (processes.length > 30) {
+      console.log(`Aggressively cleaning up ${processes.length} processes before starting new gateway...`);
+      for (const p of processes) {
+        if (p.status === 'running' || p.status === 'starting') {
+          // Keep only the one we might have just tried to kill (race condition safety)
+          if (existingProcess && p.id === existingProcess.id) continue;
+
+          try {
+            await p.kill();
+          } catch { /* ignore */ }
+        }
+      }
+      // Wait for cleanup
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  } catch (err) {
+    console.error('Pre-startup cleanup failed:', err);
   }
 
   // Start a new OpenClaw gateway
