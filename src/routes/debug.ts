@@ -401,4 +401,36 @@ debug.get('/container-config', async (c) => {
   }
 });
 
+// GET /debug/ws-check - Test WebSocket connectivity to the gateway
+debug.get('/ws-check', async (c) => {
+  const sandbox = c.get('sandbox');
+  const MOLTBOT_PORT = 18789;
+  const token = c.env.MOLTBOT_GATEWAY_TOKEN || '';
+
+  try {
+    const wsUrl = `http://localhost:${MOLTBOT_PORT}/?token=${token}`;
+    const wsRequest = new Request(wsUrl, {
+      headers: {
+        Upgrade: 'websocket',
+        Connection: 'Upgrade',
+        'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        'Sec-WebSocket-Version': '13',
+      },
+    });
+
+    const response = await sandbox.wsConnect(wsRequest, MOLTBOT_PORT);
+
+    return c.json({
+      status: response.status,
+      statusText: response.statusText,
+      hasWebSocket: !!response.webSocket,
+      headers: Object.fromEntries(response.headers.entries()),
+      token_configured: !!token,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
 export { debug };
