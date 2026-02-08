@@ -188,10 +188,9 @@ if (process.env.OPENCLAW_GATEWAY_TOKEN) {
     console.log('Removed old gateway token from config to enable pairing mode');
 }
 
-if (process.env.OPENCLAW_DEV_MODE === 'true') {
-    config.gateway.controlUi = config.gateway.controlUi || {};
-    config.gateway.controlUi.allowInsecureAuth = true;
-}
+// Always allow insecure auth to prevent 1008 errors behind proxies
+config.gateway.controlUi = config.gateway.controlUi || {};
+config.gateway.controlUi.allowInsecureAuth = true;
 
 // AI Gateway model override (CF_AI_GATEWAY_MODEL=provider/model-id)
 // Adds a provider entry for any AI Gateway provider and sets it as default model.
