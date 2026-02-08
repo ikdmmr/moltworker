@@ -192,14 +192,6 @@ if (process.env.OPENCLAW_GATEWAY_TOKEN) {
 // ============================================================
 // START AUTO-APPROVER (Background)
 // ============================================================
-# Disabled for manual verification stability
-# (
-#     echo "Auto-approver started in background"
-#     while true; do
-#         sleep 10
-#         # ... script ...
-#     done
-# ) &
 
 // Always allow insecure auth to prevent 1008 errors behind proxies
 config.gateway.controlUi = config.gateway.controlUi || {};
@@ -307,35 +299,33 @@ echo "Dev mode: ${OPENCLAW_DEV_MODE:-false}"
 # START AUTO-APPROVER (Background)
 # ============================================================
 # Use a simple background subshell loop to avoid creating extra files/permissions issues
-(
-    echo "Auto-approver started in background"
-    while true; do
-        sleep 10
-        # List pending devices
-        # We use a simple grep/sed for parsing to avoid complex node scripts in the loop if possible, 
-        # but node is reliable here if the script assumes valid JSON.
-        # We will wrap in a try/catch block for robustness.
-        PENDING=$(openclaw devices list --json --url ws://localhost:18789 2>/dev/null | node -e "
-            const fs = require('fs');
-            try {
-                const data = JSON.parse(fs.readFileSync(0, 'utf8'));
-                if (data && data.pending && Array.isArray(data.pending)) {
-                    const ids = data.pending.map(d => d.requestId);
-                    if (ids.length > 0) console.log(ids.join(' '));
-                }
-            } catch (e) {}
-        ")
-
-        if [ -n "$PENDING" ]; then
-            for id in $PENDING; do
-                if [ -n "$id" ]; then
-                    echo "Auto-approving device: $id"
-                    openclaw devices approve "$id" --url ws://localhost:18789 > /dev/null 2>&1 || true
-                fi
-            done
-        fi
-    done
-) &
+# Auto-approver disabled for manual verification
+# (
+#     echo "Auto-approver started in background"
+#     while true; do
+#         sleep 10
+#         # List pending devices
+#         PENDING=$(openclaw devices list --json --url ws://localhost:18789 2>/dev/null | node -e "
+#             const fs = require('fs');
+#             try {
+#                 const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+#                 if (data && data.pending && Array.isArray(data.pending)) {
+#                     const ids = data.pending.map(d => d.requestId);
+#                     if (ids.length > 0) console.log(ids.join(' '));
+#                 }
+#             } catch (e) {}
+#         ")
+#
+#         if [ -n "$PENDING" ]; then
+#             for id in $PENDING; do
+#                 if [ -n "$id" ]; then
+#                     echo "Auto-approving device: $id"
+#                     openclaw devices approve "$id" --url ws://localhost:18789 > /dev/null 2>&1 || true
+#                 fi
+#             done
+#         fi
+#     done
+# ) &
 
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
     echo "Starting gateway with token auth..."
