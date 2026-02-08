@@ -16,7 +16,10 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   if (env.CF_AI_GATEWAY_ACCOUNT_ID) {
     envVars.CF_AI_GATEWAY_ACCOUNT_ID = env.CF_AI_GATEWAY_ACCOUNT_ID;
   }
-  if (env.CF_AI_GATEWAY_GATEWAY_ID) {
+  // Support both CLOUDFLARE_AI_GATEWAY_ID (from manual) and CF_AI_GATEWAY_GATEWAY_ID (internal)
+  if (env.CLOUDFLARE_AI_GATEWAY_ID) {
+    envVars.CF_AI_GATEWAY_GATEWAY_ID = env.CLOUDFLARE_AI_GATEWAY_ID;
+  } else if (env.CF_AI_GATEWAY_GATEWAY_ID) {
     envVars.CF_AI_GATEWAY_GATEWAY_ID = env.CF_AI_GATEWAY_GATEWAY_ID;
   }
 

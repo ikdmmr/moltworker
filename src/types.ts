@@ -9,7 +9,8 @@ export interface MoltbotEnv {
   MOLTBOT_BUCKET: R2Bucket; // R2 bucket for persistent storage
   // Cloudflare AI Gateway configuration (preferred)
   CF_AI_GATEWAY_ACCOUNT_ID?: string; // Cloudflare account ID for AI Gateway
-  CF_AI_GATEWAY_GATEWAY_ID?: string; // AI Gateway ID
+  CF_AI_GATEWAY_GATEWAY_ID?: string; // AI Gateway ID (Internal)
+  CLOUDFLARE_AI_GATEWAY_ID?: string; // AI Gateway ID (Manual alias)
   CLOUDFLARE_AI_GATEWAY_API_KEY?: string; // API key for requests through the gateway
   CF_AI_GATEWAY_MODEL?: string; // Override model: "provider/model-id" e.g. "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast"
   // Legacy AI Gateway configuration (still supported for backward compat)

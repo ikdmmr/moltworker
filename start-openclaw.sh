@@ -193,17 +193,8 @@ if (process.env.OPENCLAW_DEV_MODE === 'true') {
     config.gateway.controlUi.allowInsecureAuth = true;
 }
 
-// Legacy AI Gateway base URL override:
-// ANTHROPIC_BASE_URL is picked up natively by the Anthropic SDK,
-// so we don't need to patch the provider config. Writing a provider
-// entry without a models array breaks OpenClaw's config validation.
-
 // AI Gateway model override (CF_AI_GATEWAY_MODEL=provider/model-id)
 // Adds a provider entry for any AI Gateway provider and sets it as default model.
-// Examples:
-//   workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast
-//   openai/gpt-4o
-//   anthropic/claude-sonnet-4-5
 if (process.env.CF_AI_GATEWAY_MODEL) {
     const raw = process.env.CF_AI_GATEWAY_MODEL;
     const slashIdx = raw.indexOf('/');
@@ -222,6 +213,7 @@ if (process.env.CF_AI_GATEWAY_MODEL) {
         baseUrl = 'https://api.cloudflare.com/client/v4/accounts/' + process.env.CF_ACCOUNT_ID + '/ai/v1';
     }
 
+    // Strict validation: baseUrl is mandatory for AI Gateway
     if (baseUrl && apiKey) {
         const api = gwProvider === 'anthropic' ? 'anthropic-messages' : 'openai-completions';
         const providerName = 'cf-ai-gw-' + gwProvider;
