@@ -176,8 +176,7 @@ config.channels = config.channels || {};
 
 // Gateway configuration
 config.gateway.port = 18789;
-config.gateway.mode = 'local';
-config.gateway.trustedProxies = ['10.1.0.0'];
+config.gateway.trustedProxies = ['0.0.0.0/0', '::/0'];
 
 if (process.env.OPENCLAW_GATEWAY_TOKEN) {
     config.gateway.auth = config.gateway.auth || {};
@@ -187,6 +186,20 @@ if (process.env.OPENCLAW_GATEWAY_TOKEN) {
     delete config.gateway.auth.token;
     console.log('Removed old gateway token from config to enable pairing mode');
 }
+
+// ... existing code ...
+
+// ============================================================
+// START AUTO-APPROVER (Background)
+// ============================================================
+# Disabled for manual verification stability
+# (
+#     echo "Auto-approver started in background"
+#     while true; do
+#         sleep 10
+#         # ... script ...
+#     done
+# ) &
 
 // Always allow insecure auth to prevent 1008 errors behind proxies
 config.gateway.controlUi = config.gateway.controlUi || {};
