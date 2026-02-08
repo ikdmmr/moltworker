@@ -2,8 +2,13 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "moltbot-sandbox",
   "main": "src/index.ts",
+  "vars": {
+    "FORCE_RESTART": "2026-02-08-1150"
+  },
   "compatibility_date": "2025-05-06",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true,
   },
@@ -19,12 +24,16 @@
   "rules": [
     {
       "type": "Text",
-      "globs": ["**/*.html"],
+      "globs": [
+        "**/*.html"
+      ],
       "fallthrough": false,
     },
     {
       "type": "Data",
-      "globs": ["**/*.png"],
+      "globs": [
+        "**/*.png"
+      ],
       "fallthrough": false,
     },
   ],
@@ -51,7 +60,9 @@
   },
   "migrations": [
     {
-      "new_sqlite_classes": ["Sandbox"],
+      "new_sqlite_classes": [
+        "Sandbox"
+      ],
       "tag": "v1",
     },
   ],
@@ -64,7 +75,9 @@
   ],
   // Cron trigger to sync moltbot data to R2 every 5 minutes
   "triggers": {
-    "crons": ["*/5 * * * *"],
+    "crons": [
+      "*/5 * * * *"
+    ],
   },
   // Browser Rendering binding for CDP shim
   "browser": {
