@@ -232,32 +232,6 @@ app.use('/debug/*', async (c, next) => {
 });
 app.route('/debug', debug);
 
-// GET /cleanup - User-friendly process cleanup (Authenticated)
-app.get('/cleanup', async (c) => {
-  const sandbox = c.get('sandbox');
-  try {
-    const processes = await sandbox.listProcesses();
-    const killed: string[] = [];
-
-    for (const p of processes) {
-      if (p.status === 'running' || p.status === 'starting') {
-        try {
-          await p.kill();
-          killed.push(p.id);
-        } catch { }
-      }
-    }
-
-    return c.html(`
-      <h1>Cleanup Complete</h1>
-      <p>Killed ${killed.length} zombie processes.</p>
-      <p>Please <a href="/">Return to App</a> and refresh.</p>
-    `);
-  } catch (e) {
-    return c.text('Cleanup failed: ' + (e instanceof Error ? e.message : String(e)));
-  }
-});
-
 // =============================================================================
 // CATCH-ALL: Proxy to Moltbot gateway
 // =============================================================================
