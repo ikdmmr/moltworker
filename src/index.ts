@@ -201,6 +201,7 @@ app.use('*', async (c, next) => {
 // Middleware: Cloudflare Access authentication for protected routes
 app.use('*', async (c, next) => {
   // TEMP: Skip auth for debug routes to allow automated diagnostics
+  // This must be done HERE, not in a prior middleware, to prevent the Access middleware from running
   const url = new URL(c.req.url);
   if (url.pathname.startsWith('/debug')) {
     return next();
