@@ -335,5 +335,6 @@ if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
     exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind lan --token "$OPENCLAW_GATEWAY_TOKEN"
 else
     echo "Starting gateway in pairing mode with auto-approver..."
-    exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind 0.0.0.0
+    # Redirect output to file for debugging crashed processes
+    exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind 0.0.0.0 > /root/gateway.log 2>&1
 fi
