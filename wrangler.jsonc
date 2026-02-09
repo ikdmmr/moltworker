@@ -3,7 +3,7 @@
   "name": "moltbot-sandbox",
   "main": "src/index.ts",
   "vars": {
-    "FORCE_RESTART": "2026-02-09-1308"
+    "FORCE_RESTART": "2026-02-09-1405"
   },
   "compatibility_date": "2025-05-06",
   "compatibility_flags": [
