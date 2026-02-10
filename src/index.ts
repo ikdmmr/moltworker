@@ -143,6 +143,51 @@ app.use('*', async (c, next) => {
   await next();
 });
 
+// GET /cleanup - Public cleanup endpoint (Guaranteed absolute top-level)
+app.get('/cleanup', async (c) => {
+  const sandbox = c.get('sandbox');
+  try {
+    const processes = await sandbox.listProcesses();
+    const killed: string[] = [];
+    
+    for (const p of processes) {
+      if (p.status === 'running' || p.status === 'starting') {
+        try {
+          await p.kill();
+          killed.push(p.id);
+        } catch {}
+      }
+    }
+    
+    return c.html(\`
+      <html>
+        <head>
+          <title>Moltworker Cleanup (v3)</title>
+          <style>
+            body { background: #1a1a2e; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .card { background: #16213e; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5); text-align: center; }
+            h1 { color: #f08e2e; }
+            a { color: #4ecca3; text-decoration: none; font-weight: bold; }
+            .stats { font-size: 1.2rem; margin: 1rem 0; color: #a2a8d3; }
+            .time { font-size: 0.8rem; color: #555; margin-top: 1rem; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h1>Cleanup Complete</h1>
+            <div class="stats">Killed \${killed.length} zombie processes.</div>
+            <p>System resources have been reset.</p>
+            <p><a href="/">👉 Return to App</a></p>
+            <div class="time">Deployed at: 2026-02-09 23:50</div>
+          </div>
+        </body>
+      </html>
+    \`);
+  } catch (e) {
+    return c.text('Cleanup failed: ' + (e instanceof Error ? e.message : String(e)));
+  }
+});
+
 // =============================================================================
 // PUBLIC ROUTES: No Cloudflare Access authentication required
 // =============================================================================
