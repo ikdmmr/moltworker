@@ -122,13 +122,34 @@ app.use('*', async (c, next) => {
   const sandbox = getSandbox(c.env.Sandbox, 'moltbot', options);
   c.set('sandbox', sandbox);
 
-  // GLOBAL CLEANUP BYPASS: Must be inside middleware to guarantee priority
+  // GET /cleanup - Public cleanup endpoint (Guaranteed absolute top-level)
+  // This route is placed here to ensure it runs before any other middleware that might
+  // interfere with sandbox access or authentication.
   if (c.req.path === '/cleanup') {
     try {
       const processes = await sandbox.listProcesses();
       const killed: string[] = [];
+      const report: any[] = [];
 
       for (const p of processes) {
+        const isGateway = p.command.includes('start-openclaw.sh') || p.command.includes('openclaw gateway');
+
+        const pData: any = {
+          id: p.id,
+          command: p.command,
+          status: p.status,
+          exitCode: p.exitCode
+        };
+
+        if (isGateway || p.status === 'failed') {
+          try {
+            const logs = await p.getLogs();
+            pData.stdout = logs.stdout || '';
+            pData.stderr = logs.stderr || '';
+          } catch { }
+        }
+        report.push(pData);
+
         if (p.status === 'running' || p.status === 'starting') {
           try {
             await p.kill();
@@ -140,23 +161,37 @@ app.use('*', async (c, next) => {
       return c.html(`
         <html>
           <head>
-            <title>Moltworker Final Cleanup</title>
+            <title>Moltworker Final Rescue (v5)</title>
             <style>
-              body { background: #0f172a; color: #f8fafc; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-              .box { background: #1e293b; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; border: 1px solid #334155; }
-              h1 { color: #38bdf8; margin-top: 0; }
-              .num { font-size: 3rem; font-weight: 800; color: #fbbf24; margin: 1rem 0; }
-              a { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; margin-top: 1rem; }
+              body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 2rem; }
+              .card { background: #1e293b; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38bdf8; }
+              .card.failed { border-left-color: #ef4444; }
+              .card.killed { border-left-color: #fbbf24; opacity: 0.7; }
+              h1 { color: #38bdf8; }
+              pre { background: #000; padding: 0.5rem; overflow: auto; max-height: 200px; color: #4ade80; font-size: 0.8rem; }
+              .label { font-weight: bold; color: #94a3b8; margin-right: 0.5rem; }
+              .status { font-weight: bold; }
+              .running { color: #4ade80; }
+              .failed { color: #ef4444; }
+              .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-weight: bold; }
             </style>
           </head>
           <body>
-            <div class="box">
-              <h1>SYSTEM RESET</h1>
-              <div class="num">${killed.length}</div>
-              <p>Zombie processes cleared successfully.</p>
-              <p>The resource deadlock has been broken.</p>
-              <a href="/">👉 Back to App</a>
-            </div>
+            <h1>Rescue Report (v5)</h1>
+            <p>Killed ${killed.length} processes. Total in sandbox: ${processes.length}</p>
+            <p><a href="/" class="btn">👉 Back to App</a></p>
+            
+            ${report.map(p => `
+              <div class="card ${p.status} ${killed.includes(p.id) ? 'killed' : ''}">
+                <div><span class="label">ID:</span> ${p.id}</div>
+                <div><span class="label">CMD:</span> ${p.command}</div>
+                <div><span class="label">STATUS:</span> <span class="status ${p.status}">${p.status}</span> ${p.exitCode !== undefined ? `(Exit: ${p.exitCode})` : ''}</div>
+                ${p.stdout || p.stderr ? `
+                  <div><span class="label">LOGS:</span></div>
+                  <pre>STDOUT: ${p.stdout}\n\nSTDERR: ${p.stderr}</pre>
+                ` : ''}
+              </div>
+            `).join('')}
           </body>
         </html>
       `);
