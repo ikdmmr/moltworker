@@ -171,7 +171,7 @@ app.use('*', async (c, next) => {
       return c.html(`
         <html>
           <head>
-            <title>Moltworker Final Rescue (v8)</title>
+            <title>Moltworker Final Rescue (v10)</title>
             <style>
               body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 2rem; }
               .card { background: #1e293b; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38bdf8; }
@@ -190,7 +190,7 @@ app.use('*', async (c, next) => {
             </style>
           </head>
           <body>
-            <h1>Rescue Report (v8)</h1>
+            <h1>Rescue Report (v10) - ${c.env.DEPLOY_ID || 'PROD'}</h1>
             
             ${startResult ? `
               <div class="${startResult.startsWith('Error') ? 'error-box' : 'result-box'}">
