@@ -123,9 +123,19 @@ app.use('*', async (c, next) => {
   c.set('sandbox', sandbox);
 
   // GET /cleanup - Public cleanup endpoint (Guaranteed absolute top-level)
-  // This route is placed here to ensure it runs before any other middleware that might
-  // interfere with sandbox access or authentication.
-  if (c.req.path === '/cleanup') {
+  if (c.req.path === '/cleanup' || c.req.path === '/cleanup/start') {
+    let startResult: string | null = null;
+
+    if (c.req.path === '/cleanup/start') {
+      try {
+        console.log('[RESCUE] Manual start triggered');
+        const proc = await ensureMoltbotGateway(sandbox, c.env);
+        startResult = `Success! Started process ${proc.id} (status: ${proc.status})`;
+      } catch (e) {
+        startResult = `Error: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    }
+
     try {
       const processes = await sandbox.listProcesses();
       const killed: string[] = [];
@@ -150,7 +160,7 @@ app.use('*', async (c, next) => {
         }
         report.push(pData);
 
-        if (p.status === 'running' || p.status === 'starting') {
+        if (c.req.path === '/cleanup' && (p.status === 'running' || p.status === 'starting')) {
           try {
             await p.kill();
             killed.push(p.id);
@@ -161,25 +171,42 @@ app.use('*', async (c, next) => {
       return c.html(`
         <html>
           <head>
-            <title>Moltworker Final Rescue (v5)</title>
+            <title>Moltworker Final Rescue (v8)</title>
             <style>
               body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 2rem; }
               .card { background: #1e293b; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38bdf8; }
               .card.failed { border-left-color: #ef4444; }
               .card.killed { border-left-color: #fbbf24; opacity: 0.7; }
+              .result-box { background: #064e3b; color: #34d399; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #059669; }
+              .error-box { background: #7f1d1d; color: #fecaca; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #b91c1c; }
               h1 { color: #38bdf8; }
               pre { background: #000; padding: 0.5rem; overflow: auto; max-height: 200px; color: #4ade80; font-size: 0.8rem; }
               .label { font-weight: bold; color: #94a3b8; margin-right: 0.5rem; }
               .status { font-weight: bold; }
               .running { color: #4ade80; }
               .failed { color: #ef4444; }
-              .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-weight: bold; }
+              .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-weight: bold; margin-right: 0.5rem; }
+              .btn-start { background: #fbbf24; }
             </style>
           </head>
           <body>
-            <h1>Rescue Report (v5)</h1>
-            <p>Killed ${killed.length} processes. Total in sandbox: ${processes.length}</p>
-            <p><a href="/" class="btn">👉 Back to App</a></p>
+            <h1>Rescue Report (v8)</h1>
+            
+            ${startResult ? `
+              <div class="${startResult.startsWith('Error') ? 'error-box' : 'result-box'}">
+                <strong>Start Result:</strong> ${startResult}
+              </div>
+            ` : ''}
+
+            <p>
+              <a href="/cleanup" class="btn">🧹 Full Cleanup</a>
+              <a href="/cleanup/start" class="btn btn-start">⚡ Force Start Gateway</a>
+              <a href="/" class="btn">👉 Back to App</a>
+            </p>
+            
+            <p>Total processes in sandbox: ${processes.length}</p>
+
+            ${report.length === 0 ? '<p><i>No processes found.</i></p>' : ''}
             
             ${report.map(p => `
               <div class="card ${p.status} ${killed.includes(p.id) ? 'killed' : ''}">
@@ -196,7 +223,7 @@ app.use('*', async (c, next) => {
         </html>
       `);
     } catch (e) {
-      return c.text('Cleanup failed: ' + (e instanceof Error ? e.message : String(e)));
+      return c.text('Rescue operation failed: ' + (e instanceof Error ? e.message : String(e)));
     }
   }
 

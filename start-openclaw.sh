@@ -8,10 +8,8 @@
 
 set -e
 
-# NUCLEAR CLEANUP: Kill all existing openclaw processes except this one
-echo "Cleaning up existing processes..."
-pkill -9 -f "openclaw" | grep -v $$ || true
-# Wait for ports to be released
+# Skip redundant cleanup logic as it's handled by the worker
+echo "Starting boot sequence..."
 sleep 1
 
 CONFIG_DIR="/root/.openclaw"
