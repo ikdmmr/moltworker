@@ -8,11 +8,11 @@
 
 set -e
 
-# NUCLEAR CLEANUP: Kill all existing openclaw processes to prevent zombie pile-up
+# NUCLEAR CLEANUP: Kill all existing openclaw processes except this one
 echo "Cleaning up existing processes..."
-pkill -9 -f openclaw || true
+pkill -9 -f "openclaw" | grep -v $$ || true
 # Wait for ports to be released
-sleep 2
+sleep 1
 
 CONFIG_DIR="/root/.openclaw"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
@@ -335,7 +335,6 @@ if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
     echo "Starting gateway with token auth..."
     exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind lan --token "$OPENCLAW_GATEWAY_TOKEN"
 else
-    echo "Starting gateway in pairing mode with auto-approver..."
-    # Redirect output to file for debugging crashed processes
-    exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind 0.0.0.0 > /root/gateway.log 2>&1
+    # Direct output to stdout/stderr so they are visible in sandbox logs
+    exec openclaw gateway --port 18789 --verbose --allow-unconfigured --bind 0.0.0.0
 fi
