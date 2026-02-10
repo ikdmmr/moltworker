@@ -35,7 +35,6 @@
       "globs": [
         "**/*.png"
       ],
-      "fallthrough": false,
       "fallthrough": false
     }
   ],
@@ -75,10 +74,11 @@
       "bucket_name": "moltbot-data"
     }
   ],
-  // Cron trigger to sync moltbot data to R2 every 5 minutes
-  "scheduled": [
-    "*/5 * * * *"
-  ],
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
   "browser": {
     "binding": "BROWSER"
   },
