@@ -3,7 +3,8 @@
   "name": "moltbot-sandbox",
   "main": "src/index.ts",
   "vars": {
-    "FORCE_RESTART": "2026-02-09-2350"
+    "FORCE_RESTART": "2026-02-10-1430",
+    "DEPLOY_ID": "RESCUE_V4_DIRECT"
   },
   "compatibility_date": "2025-05-06",
   "compatibility_flags": [
@@ -35,53 +36,51 @@
         "**/*.png"
       ],
       "fallthrough": false,
-    },
+      "fallthrough": false
+    }
   ],
   // Build command for vite
   "build": {
-    "command": "npm run build",
+    "command": "npm run build"
   },
-  // Container configuration for the Moltbot sandbox
   "containers": [
     {
+      "name": "moltbot-sandbox-sandbox",
       "class_name": "Sandbox",
       "image": "./Dockerfile",
       "instance_type": "standard-1",
-      "max_instances": 1,
-    },
+      "max_instances": 1
+    }
   ],
   "durable_objects": {
     "bindings": [
       {
-        "class_name": "Sandbox",
         "name": "Sandbox",
-      },
-    ],
+        "class_name": "Sandbox"
+      }
+    ]
   },
   "migrations": [
     {
+      "tag": "v1",
       "new_sqlite_classes": [
         "Sandbox"
-      ],
-      "tag": "v1",
-    },
+      ]
+    }
   ],
   // R2 bucket for persistent storage (moltbot data, conversations, etc.)
   "r2_buckets": [
     {
       "binding": "MOLTBOT_BUCKET",
-      "bucket_name": "moltbot-data",
-    },
+      "bucket_name": "moltbot-data"
+    }
   ],
   // Cron trigger to sync moltbot data to R2 every 5 minutes
-  "triggers": {
-    "crons": [
-      "*/5 * * * *"
-    ],
-  },
-  // Browser Rendering binding for CDP shim
+  "scheduled": [
+    "*/5 * * * *"
+  ],
   "browser": {
-    "binding": "BROWSER",
+    "binding": "BROWSER"
   },
   // Note: CF_ACCOUNT_ID should be set via `wrangler secret put CF_ACCOUNT_ID`
   // Secrets to configure via `wrangler secret put`:

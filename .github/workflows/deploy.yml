@@ -1,6 +1,9 @@
 name: Deploy Moltworker
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

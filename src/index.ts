@@ -1,24 +1,5 @@
-/**
- * Moltbot + Cloudflare Sandbox
- *
- * This Worker runs Moltbot personal AI assistant in a Cloudflare Sandbox container.
- * It proxies all requests to the Moltbot Gateway's web UI and WebSocket endpoint.
- *
- * Features:
- * - Web UI (Control Dashboard + WebChat) at /
- * - WebSocket support for real-time communication
- * - Admin UI at /_admin/ for device management
- * - Configuration via environment secrets
- *
- * Required secrets (set via `wrangler secret put`):
- * - ANTHROPIC_API_KEY: Your Anthropic API key
- *
- * Optional secrets:
- * - MOLTBOT_GATEWAY_TOKEN: Token to protect gateway access
- * - TELEGRAM_BOT_TOKEN: Telegram bot token
- * - DISCORD_BOT_TOKEN: Discord bot token
- * - SLACK_BOT_TOKEN + SLACK_APP_TOKEN: Slack tokens
- */
+/** Moltbot + Cloudflare Sandbox Proxy */
+
 
 import { Hono } from 'hono';
 import { getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
@@ -27,7 +8,7 @@ import type { AppEnv, MoltbotEnv } from './types';
 import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
-import { publicRoutes, api, adminUi, debug, cdp } from './routes';
+import { publicRoutes, api, adminUi, debug } from './routes';
 import { redactSensitiveParams } from './utils/logging';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
@@ -140,53 +121,55 @@ app.use('*', async (c, next) => {
   const options = buildSandboxOptions(c.env);
   const sandbox = getSandbox(c.env.Sandbox, 'moltbot', options);
   c.set('sandbox', sandbox);
+
+  // GLOBAL CLEANUP BYPASS: Must be inside middleware to guarantee priority
+  if (c.req.path === '/cleanup') {
+    try {
+      const processes = await sandbox.listProcesses();
+      const killed: string[] = [];
+
+      for (const p of processes) {
+        if (p.status === 'running' || p.status === 'starting') {
+          try {
+            await p.kill();
+            killed.push(p.id);
+          } catch { }
+        }
+      }
+
+      return c.html(`
+        <html>
+          <head>
+            <title>Moltworker Final Cleanup</title>
+            <style>
+              body { background: #0f172a; color: #f8fafc; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+              .box { background: #1e293b; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; border: 1px solid #334155; }
+              h1 { color: #38bdf8; margin-top: 0; }
+              .num { font-size: 3rem; font-weight: 800; color: #fbbf24; margin: 1rem 0; }
+              a { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: bold; margin-top: 1rem; }
+            </style>
+          </head>
+          <body>
+            <div class="box">
+              <h1>SYSTEM RESET</h1>
+              <div class="num">${killed.length}</div>
+              <p>Zombie processes cleared successfully.</p>
+              <p>The resource deadlock has been broken.</p>
+              <a href="/">👉 Back to App</a>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (e) {
+      return c.text('Cleanup failed: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   await next();
 });
 
-// GET /cleanup - Public cleanup endpoint (Guaranteed absolute top-level)
-app.get('/cleanup', async (c) => {
-  const sandbox = c.get('sandbox');
-  try {
-    const processes = await sandbox.listProcesses();
-    const killed: string[] = [];
-    
-    for (const p of processes) {
-      if (p.status === 'running' || p.status === 'starting') {
-        try {
-          await p.kill();
-          killed.push(p.id);
-        } catch {}
-      }
-    }
-    
-    return c.html(\`
-      <html>
-        <head>
-          <title>Moltworker Cleanup (v3)</title>
-          <style>
-            body { background: #1a1a2e; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            .card { background: #16213e; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5); text-align: center; }
-            h1 { color: #f08e2e; }
-            a { color: #4ecca3; text-decoration: none; font-weight: bold; }
-            .stats { font-size: 1.2rem; margin: 1rem 0; color: #a2a8d3; }
-            .time { font-size: 0.8rem; color: #555; margin-top: 1rem; }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <h1>Cleanup Complete</h1>
-            <div class="stats">Killed \${killed.length} zombie processes.</div>
-            <p>System resources have been reset.</p>
-            <p><a href="/">👉 Return to App</a></p>
-            <div class="time">Deployed at: 2026-02-09 23:50</div>
-          </div>
-        </body>
-      </html>
-    \`);
-  } catch (e) {
-    return c.text('Cleanup failed: ' + (e instanceof Error ? e.message : String(e)));
-  }
-});
+// Cleanup route moved to middleware for guaranteed priority.
+
 
 // =============================================================================
 // PUBLIC ROUTES: No Cloudflare Access authentication required
@@ -197,7 +180,8 @@ app.get('/cleanup', async (c) => {
 app.route('/', publicRoutes);
 
 // Mount CDP routes (uses shared secret auth via query param, not CF Access)
-app.route('/cdp', cdp);
+// app.route('/cdp', cdp);
+
 
 // =============================================================================
 // PROTECTED ROUTES: Cloudflare Access authentication required
