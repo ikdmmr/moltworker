@@ -6,11 +6,23 @@
 # 3. Patches config for features onboard doesn't cover (channels, gateway auth)
 # 4. Starts the gateway
 
-set -e
+set -ex
 
-# Skip redundant cleanup logic as it's handled by the worker
-echo "Starting boot sequence..."
-sleep 1
+echo "Starting boot sequence (v17)..."
+
+# ============================================================
+# SINGLETON LOCK (Prevent duplicate start scripts)
+# ============================================================
+LOCK_FILE="/tmp/start-openclaw.lock"
+if [ -f "$LOCK_FILE" ]; then
+    PID=$(cat "$LOCK_FILE" 2>/dev/null)
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+        echo "Found another start script running (PID: $PID), exiting..."
+        exit 0
+    fi
+fi
+echo $$ > "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
 
 CONFIG_DIR="/root/.openclaw"
 CONFIG_FILE="$CONFIG_DIR/openclaw.json"
@@ -95,7 +107,6 @@ else
 fi
 
 # Restore workspace from R2 backup if available (only if R2 is newer)
-# This includes IDENTITY.md, USER.md, MEMORY.md, memory/, and assets/
 WORKSPACE_DIR="/root/clawd"
 if [ -d "$BACKUP_DIR/workspace" ] && [ "$(ls -A $BACKUP_DIR/workspace 2>/dev/null)" ]; then
     if should_restore_from_r2; then
@@ -116,24 +127,6 @@ if [ -d "$BACKUP_DIR/skills" ] && [ "$(ls -A $BACKUP_DIR/skills 2>/dev/null)" ];
         echo "Restored skills from R2 backup"
     fi
 fi
-
-# ============================================================
-# SINGLETON LOCK (Prevent duplicate start scripts)
-# ============================================================
-LOCK_FILE="/tmp/start-openclaw.lock"
-if [ -f "$LOCK_FILE" ]; then
-    PID=$(cat "$LOCK_FILE" 2>/dev/null)
-    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-        echo "Found another start script running (PID: $PID), exiting..."
-        exit 0
-    fi
-fi
-echo $$ > "$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE"' EXIT
-
-# ============================================================
-# ONBOARD (only if no config exists yet)
-# ============================================================
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "No existing config found, preparing initial config..."
 
