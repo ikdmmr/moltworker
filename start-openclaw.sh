@@ -200,12 +200,15 @@ config.gateway.port = 18789;
 config.gateway.trustedProxies = ['0.0.0.0/0', '::/0'];
 
 if (process.env.OPENCLAW_GATEWAY_TOKEN) {
-    config.gateway.auth = config.gateway.auth || {};
-    config.gateway.auth.token = process.env.OPENCLAW_GATEWAY_TOKEN;
-} else if (config.gateway.auth) {
-    // Explicitly remove token if env var is missing to allow pairing mode
-    delete config.gateway.auth.token;
-    console.log('Removed old gateway token from config to enable pairing mode');
+    config.gateway.auth = {
+        type: 'token',
+        token: process.env.OPENCLAW_GATEWAY_TOKEN
+    };
+} else {
+    config.gateway.auth = {
+        type: 'pairing'
+    };
+    console.log('Forcing pairing mode (no token configured)');
 }
 
 // ... existing code ...
