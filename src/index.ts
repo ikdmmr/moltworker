@@ -182,47 +182,82 @@ app.use('*', async (c, next) => {
         }
       }
 
+      const versionStr = "v14 - RESCUE_V14_FINAL_DIAG";
+
+      // Check if port 18789 is listening
+      let portStatus = "Check pending...";
+      try {
+        // Better: try a quick internal fetch or check processes
+        const gatewayProc = processes.find(p => p.command.includes('gateway') && (p.status === 'running' || p.status === 'starting'));
+        if (gatewayProc) {
+          try {
+            const ready = await gatewayProc.waitForPort(18789, { timeout: 1000 }).then(() => true).catch(() => false);
+            portStatus = ready ? "✅ LISTENING" : "⏳ WAITING FOR PORT";
+          } catch { portStatus = "❌ PORT BLOCKED/CLOSED"; }
+        } else {
+          portStatus = "⚪ GATEWAY NOT STARTED";
+        }
+      } catch { }
+
       return c.html(`
         <html>
           <head>
-            <title>Moltworker Final Rescue (v13)</title>
+            <title>Moltworker Final Rescue (v14)</title>
             <style>
               body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1.5rem; line-height: 1.4; }
-              .card { background: #1e293b; padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border-left: 4px solid #38bdf8; }
+              .card { background: #1e293b; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38bdf8; position: relative; }
               .card.failed { border-left-color: #ef4444; }
               .card.completed { border-left-color: #94a3b8; }
               .card.killed { border-left-color: #fbbf24; opacity: 0.7; }
-              .banner { background: #334155; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #475569; }
+              .banner { background: #1e293b; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #334155; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
               .result-box { background: #064e3b; color: #34d399; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #059669; }
-              h1 { color: #38bdf8; margin-top: 0; }
-              pre { background: #000; padding: 0.5rem; overflow: auto; max-height: 250px; color: #4ade80; font-size: 0.75rem; border: 1px solid #334155; }
+              h1 { color: #38bdf8; margin-top: 0; font-size: 1.5rem; }
+              h2 { color: #94a3b8; font-size: 1rem; margin: 1rem 0 0.5rem; }
+              pre { background: #000; padding: 0.5rem; overflow: auto; max-height: 300px; color: #4ade80; font-size: 0.75rem; border: 1px solid #334155; margin-top: 0.5rem; }
               .label { font-weight: bold; color: #94a3b8; margin-right: 0.5rem; }
               .status { font-weight: bold; }
               .running { color: #4ade80; }
               .failed { color: #ef4444; }
-              .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-weight: bold; margin-right: 0.5rem; border: none; cursor: pointer; }
+              .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.6rem 1.2rem; border-radius: 0.25rem; text-decoration: none; font-weight: bold; margin-right: 0.5rem; border: none; cursor: pointer; font-size: 0.9rem; }
               .btn-start { background: #fbbf24; }
               .btn-nuclear { background: #ef4444; color: #fff; }
               .btn-refresh { background: #10b981; }
+              .btn-secondary { background: #475569; color: #fff; }
+              .port-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 1rem; font-size: 0.8rem; background: #334155; font-weight: bold; }
+              .port-up { background: #065f46; color: #34d399; }
+              .port-down { background: #7f1d1d; color: #fecaca; }
             </style>
           </head>
           <body>
-            <h1>Rescue Report (v13) - ${c.env.DEPLOY_ID || 'PROD'}</h1>
+            <h1>Moltworker Rescue Dashboard (v14)</h1>
             
-            ${startResult ? `<div class="result-box"><strong>Start Action:</strong> ${startResult}</div>` : ''}
-            ${isNuclear ? `<div class="result-box" style="background:#7f1d1d;color:#fecaca;border-color:#b91c1c;"><strong>Nuclear Cleanup:</strong> Killed ${killed.length} processes.</div>` : ''}
+            ${startResult ? `<div class="result-box"><strong>Action:</strong> ${startResult}</div>` : ''}
+            ${isNuclear ? `<div class="result-box" style="background:#7f1d1d;color:#fecaca;border-color:#b91c1c;"><strong>Safety Reset:</strong> Killed ${killed.length} processes.</div>` : ''}
 
             <div class="banner">
-              <p style="margin-top:0"><strong>Dashboard Controls:</strong></p>
-              <a href="/cleanup/start" class="btn btn-start">⚡ Force Start Gateway</a>
-              <button onclick="location.reload()" class="btn btn-refresh">🔄 Refresh Status</button>
-              <a href="/cleanup/nuclear" class="btn btn-nuclear" onclick="return confirm('Kill all processes?')">☢️ Nuclear Cleanup</a>
-              <a href="/" class="btn">👉 Back to App</a>
+              <h2>System Control</h2>
+              <div style="margin-bottom: 1rem;">
+                <a href="/cleanup/nuclear" class="btn btn-nuclear" onclick="return confirm('Kill ALL processes and start fresh?')">☢️ Nuclear Reset</a>
+                <a href="/cleanup/start" class="btn btn-start">⚡ Force Start Gateway</a>
+                <button onclick="location.reload()" class="btn btn-refresh">🔄 Refresh Status</button>
+              </div>
+              
+              <h2>App Navigation</h2>
+              <div>
+                <a href="/" class="btn">🏠 Home App</a>
+                <a href="/_admin/" class="btn btn-secondary">🔑 Pairing Page (Login)</a>
+                <a href="/sandbox-health" class="btn btn-secondary" target="_blank">🩺 Raw Health</a>
+              </div>
+
+              <div style="margin-top: 1.5rem; border-top: 1px solid #334155; padding-top: 1rem;">
+                <span class="label">DEPLOY_ID:</span> <code>${c.env.DEPLOY_ID || 'PROD'}</code> | 
+                <span class="label">PORT 18789:</span> <span class="port-badge ${portStatus.includes('✅') ? 'port-up' : 'port-down'}">${portStatus}</span>
+              </div>
             </div>
             
-            <p>Total processes in sandbox: ${processes.length}</p>
+            <h2>Process Management (${processes.length} active)</h2>
 
-            ${report.length === 0 ? '<p><i>No processes found. Use "Force Start" to boot the container.</i></p>' : ''}
+            ${report.length === 0 ? '<p><i>No processes found. Use "Nuclear Reset" then "Force Start" to begin.</i></p>' : ''}
             
             ${report.map(p => `
               <div class="card ${p.status} ${killed.includes(p.id) ? 'killed' : ''}">
@@ -230,11 +265,10 @@ app.use('*', async (c, next) => {
                 <div><span class="label">CMD:</span> ${p.command}</div>
                 <div><span class="label">STATUS:</span> <span class="status ${p.status}">${p.status}</span> ${p.exitCode !== undefined ? `(Exit: ${p.exitCode})` : ''}</div>
                 ${p.stdout || p.stderr ? `
-                  <div><span class="label">LOGS (Last 30 lines):</span></div>
-                  <pre>STDOUT: ${p.stdout}\n\nSTDERR: ${p.stderr}</pre>
-                ` : ''}
+                  <pre>STDOUT:\n${p.stdout}\n\nSTDERR:\n${p.stderr}</pre>
+                ` : '<p><i>(No logs generated yet)</i></p>'}
               </div>
-            `).join('')}
+            `).reverse().join('')}
           </body>
         </html>
       `);
