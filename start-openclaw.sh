@@ -118,10 +118,30 @@ if [ -d "$BACKUP_DIR/skills" ] && [ "$(ls -A $BACKUP_DIR/skills 2>/dev/null)" ];
 fi
 
 # ============================================================
+# SINGLETON LOCK (Prevent duplicate start scripts)
+# ============================================================
+LOCK_FILE="/tmp/start-openclaw.lock"
+if [ -f "$LOCK_FILE" ]; then
+    PID=$(cat "$LOCK_FILE" 2>/dev/null)
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+        echo "Found another start script running (PID: $PID), exiting..."
+        exit 0
+    fi
+fi
+echo $$ > "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
+
+# ============================================================
 # ONBOARD (only if no config exists yet)
 # ============================================================
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "No existing config found, running openclaw onboard..."
+    echo "No existing config found, preparing initial config..."
+
+    # Ensure the directory exists
+    mkdir -p "$CONFIG_DIR"
+
+    # Create a minimal config so the patcher has something to work with
+    echo '{"models":{"providers":{}}}' > "$CONFIG_FILE"
 
     AUTH_ARGS=""
     if [ -n "$CLOUDFLARE_AI_GATEWAY_API_KEY" ] && [ -n "$CF_AI_GATEWAY_ACCOUNT_ID" ] && [ -n "$CF_AI_GATEWAY_GATEWAY_ID" ]; then
@@ -135,16 +155,18 @@ if [ ! -f "$CONFIG_FILE" ]; then
         AUTH_ARGS="--auth-choice openai-api-key --openai-api-key $OPENAI_API_KEY"
     fi
 
-    openclaw onboard --non-interactive --accept-risk \
+    echo "Running openclaw onboard (timeout 60s)..."
+    # Use timeout to prevent hanging, and use --non-interactive
+    timeout 60s openclaw onboard --non-interactive --accept-risk \
         --mode local \
         $AUTH_ARGS \
         --gateway-port 18789 \
         --gateway-bind lan \
         --skip-channels \
         --skip-skills \
-        --skip-health
+        --skip-health || echo "Onboard warning: command timed out or failed (code $?), continuing to manual patch..."
 
-    echo "Onboard completed"
+    echo "Initial configuration phase completed"
 else
     echo "Using existing config"
 fi
