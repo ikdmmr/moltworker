@@ -151,11 +151,11 @@ app.use('*', async (c, next) => {
           exitCode: p.exitCode
         };
 
-        if (isGateway || p.status === 'failed') {
+        if (p.status === 'running' || p.status === 'starting' || p.status === 'failed' || p.status === 'completed') {
           try {
             const logs = await p.getLogs();
-            pData.stdout = logs.stdout || '';
-            pData.stderr = logs.stderr || '';
+            pData.stdout = (logs.stdout || '').split('\n').slice(-30).join('\n');
+            pData.stderr = (logs.stderr || '').split('\n').slice(-30).join('\n');
           } catch { }
         }
         report.push(pData);
@@ -168,60 +168,87 @@ app.use('*', async (c, next) => {
         }
       }
 
-      return c.html(`
+      if (c.req.path === '/cleanup/start') {
+        console.log('[RESCUE] Manual start triggered (async)');
+        c.executionCtx.waitUntil(
+          ensureMoltbotGateway(sandbox, c.env).catch((err: Error) => {
+            console.error('[RESCUE] Manual start failed:', err);
+          })
+        );
+        return c.html(`
         <html>
           <head>
-            <title>Moltworker Final Rescue (v10)</title>
+            <title>Starting...</title>
+            <meta http-equiv="refresh" content="5;url=/cleanup">
             <style>
-              body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 2rem; }
-              .card { background: #1e293b; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38bdf8; }
-              .card.failed { border-left-color: #ef4444; }
-              .card.killed { border-left-color: #fbbf24; opacity: 0.7; }
-              .result-box { background: #064e3b; color: #34d399; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #059669; }
-              .error-box { background: #7f1d1d; color: #fecaca; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #b91c1c; }
-              h1 { color: #38bdf8; }
-              pre { background: #000; padding: 0.5rem; overflow: auto; max-height: 200px; color: #4ade80; font-size: 0.8rem; }
-              .label { font-weight: bold; color: #94a3b8; margin-right: 0.5rem; }
-              .status { font-weight: bold; }
-              .running { color: #4ade80; }
-              .failed { color: #ef4444; }
-              .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-weight: bold; margin-right: 0.5rem; }
-              .btn-start { background: #fbbf24; }
+              body { background: #0f172a; color: #f8fafc; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+              .box { background: #1e293b; padding: 2rem; border-radius: 1rem; text-align: center; border: 1px solid #334155; }
+              .spinner { width: 40px; height: 40px; border: 4px solid rgba(56, 189, 248, 0.1); border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+              @keyframes spin { to { transform: rotate(360deg); } }
             </style>
           </head>
           <body>
-            <h1>Rescue Report (v10) - ${c.env.DEPLOY_ID || 'PROD'}</h1>
-            
-            ${startResult ? `
-              <div class="${startResult.startsWith('Error') ? 'error-box' : 'result-box'}">
-                <strong>Start Result:</strong> ${startResult}
-              </div>
-            ` : ''}
-
-            <p>
-              <a href="/cleanup" class="btn">🧹 Full Cleanup</a>
-              <a href="/cleanup/start" class="btn btn-start">⚡ Force Start Gateway</a>
-              <a href="/" class="btn">👉 Back to App</a>
-            </p>
-            
-            <p>Total processes in sandbox: ${processes.length}</p>
-
-            ${report.length === 0 ? '<p><i>No processes found.</i></p>' : ''}
-            
-            ${report.map(p => `
-              <div class="card ${p.status} ${killed.includes(p.id) ? 'killed' : ''}">
-                <div><span class="label">ID:</span> ${p.id}</div>
-                <div><span class="label">CMD:</span> ${p.command}</div>
-                <div><span class="label">STATUS:</span> <span class="status ${p.status}">${p.status}</span> ${p.exitCode !== undefined ? `(Exit: ${p.exitCode})` : ''}</div>
-                ${p.stdout || p.stderr ? `
-                  <div><span class="label">LOGS:</span></div>
-                  <pre>STDOUT: ${p.stdout}\n\nSTDERR: ${p.stderr}</pre>
-                ` : ''}
-              </div>
-            `).join('')}
+            <div class="box">
+              <div class="spinner"></div>
+              <h1>Starting Gateway...</h1>
+              <p>Triggered startup in background.</p>
+              <p>Redirecting to dashboard in 5 seconds...</p>
+              <p><a href="/cleanup" style="color:#38bdf8">Click here if not redirected</a></p>
+            </div>
           </body>
         </html>
       `);
+      }
+
+      return c.html(`
+      <html>
+        <head>
+          <title>Moltworker Final Rescue (v11)</title>
+          <style>
+            body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1.5rem; }
+            .card { background: #1e293b; padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.75rem; border-left: 4px solid #38bdf8; }
+            .card.failed { border-left-color: #ef4444; }
+            .card.completed { border-left-color: #94a3b8; }
+            .card.killed { border-left-color: #fbbf24; opacity: 0.7; }
+            h1 { color: #38bdf8; margin-top: 0; }
+            pre { background: #000; padding: 0.5rem; overflow: auto; max-height: 250px; color: #4ade80; font-size: 0.75rem; border: 1px solid #334155; }
+            .label { font-weight: bold; color: #94a3b8; margin-right: 0.5rem; }
+            .status { font-weight: bold; }
+            .running { color: #4ade80; }
+            .failed { color: #ef4444; }
+            .btn { display: inline-block; background: #38bdf8; color: #0f172a; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-weight: bold; margin-right: 0.5rem; cursor: pointer; border: none; }
+            .btn-start { background: #fbbf24; }
+            .btn-refresh { background: #10b981; }
+          </style>
+        </head>
+        <body>
+          <h1>Rescue Report (v11) - ${c.env.DEPLOY_ID || 'PROD'}</h1>
+          
+          <p>
+            <a href="/cleanup" class="btn">🧹 Full Cleanup</a>
+            <a href="/cleanup/start" class="btn btn-start">⚡ Force Start Gateway</a>
+            <button onclick="location.reload()" class="btn btn-refresh">🔄 Refresh Status</button>
+            <a href="/" class="btn">👉 Back to App</a>
+          </p>
+          
+          <p>Total processes in sandbox: ${processes.length}</p>
+
+          ${report.length === 0 ? '<p><i>No processes found. Use "Force Start" to boot the container.</i></p>' : ''}
+          
+          ${report.map(p => `
+            <div class="card ${p.status} ${killed.includes(p.id) ? 'killed' : ''}">
+              <div><span class="label">ID:</span> ${p.id}</div>
+              <div><span class="label">CMD:</span> ${p.command}</div>
+              <div><span class="label">STATUS:</span> <span class="status ${p.status}">${p.status}</span> ${p.exitCode !== undefined ? `(Exit: ${p.exitCode})` : ''}</div>
+              ${p.stdout || p.stderr ? `
+                <div><span class="label">LOGS (Last 30 lines):</span></div>
+                <pre>STDOUT: ${p.stdout}\n\nSTDERR: ${p.stderr}</pre>
+              ` : ''}
+            </div>
+          `).join('')}
+        </body>
+      </html>
+    `);
     } catch (e) {
       return c.text('Rescue operation failed: ' + (e instanceof Error ? e.message : String(e)));
     }
