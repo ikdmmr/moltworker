@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "vars": {
     "FORCE_RESTART": "2026-02-10-1430",
-    "DEPLOY_ID": "RESCUE_V11_LFIX"
+    "DEPLOY_ID": "RESCUE_V12_DOCTOR_FIX"
   },
   "compatibility_date": "2025-05-06",
   "compatibility_flags": [
