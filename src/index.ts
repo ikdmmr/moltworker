@@ -187,7 +187,7 @@ app.use('*', async (c, next) => {
         }
       }
 
-      const versionStr = "v18 - RESCUE_V18_FINAL_FIX";
+      const versionStr = "v19 - RESCUE_V19_FIXED_LOCK";
 
       // Check if port 18789 is listening
       let portStatus = "Check pending...";
@@ -207,7 +207,7 @@ app.use('*', async (c, next) => {
       return c.html(`
         <html>
           <head>
-            <title>Moltworker Final Rescue (v18)</title>
+            <title>Moltworker Final Rescue (v19)</title>
             <style>
               body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1.5rem; line-height: 1.4; }
               .card { background: #1e293b; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38bdf8; position: relative; }
@@ -234,7 +234,7 @@ app.use('*', async (c, next) => {
             </style>
           </head>
           <body>
-            <h1>Moltworker Rescue Dashboard (v18)</h1>
+            <h1>Moltworker Rescue Dashboard (v19)</h1>
             
             ${startResult ? `<div class="result-box"><strong>Action:</strong> ${startResult}</div>` : ''}
             ${isNuclear ? `<div class="result-box" style="background:#7f1d1d;color:#fecaca;border-color:#b91c1c;"><strong>Safety Reset:</strong> Killed ${killed.length} processes.</div>` : ''}

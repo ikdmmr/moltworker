@@ -16,9 +16,10 @@ echo "Starting boot sequence (v17)..."
 LOCK_FILE="/tmp/start-openclaw.lock"
 
 if [ "$RESCUE_FORCE" = "true" ]; then
-    echo "RESCUE_FORCE detected: removing old lock/stale processes..."
+    echo "RESCUE_FORCE detected: removing old lock and cleaning up OTHER processes..."
     rm -f "$LOCK_FILE"
-    pkill -9 -f "openclaw" || true
+    # Kill other openclaw processes but exclude this script's PID
+    pgrep -f "openclaw" | grep -v "^$$$" | xargs kill -9 2>/dev/null || true
     sleep 1
 fi
 
