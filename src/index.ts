@@ -155,20 +155,29 @@ app.use('*', async (c, next) => {
       const killed: string[] = [];
       const report: any[] = [];
 
+      if (isNuclear) {
+        // AGGRESSIVE CLEANUP: Remove lock file and kill everything
+        try {
+          await sandbox.startProcess('rm -f /tmp/start-openclaw.lock /tmp/openclaw-gateway.lock');
+          await sandbox.startProcess('pkill -9 -f openclaw');
+        } catch { }
+      }
+
       for (const p of processes) {
-        const isGateway = p.command.includes('start-openclaw.sh') || p.command.includes('openclaw gateway');
-        const isCli = p.command.includes('test -f') || p.command.includes('cat ') || p.command.includes('mkdir');
+        const isGateway = p.command.includes('start-openclaw.sh') || p.command.includes('gateway');
+        const isCli = p.command.includes('test -f') || p.command.includes('cat ') || p.command.includes('mkdir') || p.command.includes('pgrep');
 
         if (isNuclear) {
           try {
             await p.kill();
             killed.push(p.id);
           } catch { }
-          continue; // Don't report killed ones in nuclear mode
+          continue;
         }
 
-        // Only report gateway-relevant or non-trivial processes
-        if (isGateway || !isCli) {
+        // Only report running/starting or gateway-relevant failed ones
+        const isActive = p.status === 'running' || p.status === 'starting';
+        if ((isActive || isGateway) && !isCli) {
           const pData: any = {
             id: p.id,
             command: p.command,
@@ -187,7 +196,7 @@ app.use('*', async (c, next) => {
         }
       }
 
-      const versionStr = "v19 - RESCUE_V19_FIXED_LOCK";
+      const versionStr = "v20 - RESCUE_V20_FORCE_CLEAN";
 
       // Check if port 18789 is listening
       let portStatus = "Check pending...";
@@ -207,7 +216,7 @@ app.use('*', async (c, next) => {
       return c.html(`
         <html>
           <head>
-            <title>Moltworker Final Rescue (v19)</title>
+            <title>Moltworker Final Rescue (v20)</title>
             <style>
               body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1.5rem; line-height: 1.4; }
               .card { background: #1e293b; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38bdf8; position: relative; }
@@ -234,7 +243,7 @@ app.use('*', async (c, next) => {
             </style>
           </head>
           <body>
-            <h1>Moltworker Rescue Dashboard (v19)</h1>
+            <h1>Moltworker Rescue Dashboard (v20)</h1>
             
             ${startResult ? `<div class="result-box"><strong>Action:</strong> ${startResult}</div>` : ''}
             ${isNuclear ? `<div class="result-box" style="background:#7f1d1d;color:#fecaca;border-color:#b91c1c;"><strong>Safety Reset:</strong> Killed ${killed.length} processes.</div>` : ''}
@@ -260,7 +269,7 @@ app.use('*', async (c, next) => {
               </div>
             </div>
             
-            <h2>Process Management (${processes.length} active)</h2>
+            <h2>Process Management (${processes.filter(p => p.status === 'running' || p.status === 'starting').length} active)</h2>
 
             ${report.length === 0 ? '<p><i>No processes found. Use "Nuclear Reset" then "Force Start" to begin.</i></p>' : ''}
             

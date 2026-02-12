@@ -8,7 +8,7 @@
 
 set -ex
 
-echo "Starting boot sequence (v17)..."
+echo "Starting boot sequence (v20 - FORCE_LOCK_FIX)..."
 
 # ============================================================
 # SINGLETON LOCK (Prevent duplicate start scripts)
