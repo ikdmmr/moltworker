@@ -157,28 +157,33 @@ app.use('*', async (c, next) => {
 
       for (const p of processes) {
         const isGateway = p.command.includes('start-openclaw.sh') || p.command.includes('openclaw gateway');
+        const isCli = p.command.includes('test -f') || p.command.includes('cat ') || p.command.includes('mkdir');
 
-        const pData: any = {
-          id: p.id,
-          command: p.command,
-          status: p.status,
-          exitCode: p.exitCode
-        };
-
-        if (p.status === 'running' || p.status === 'starting' || p.status === 'failed' || p.status === 'completed') {
-          try {
-            const logs = await p.getLogs();
-            pData.stdout = (logs.stdout || '').split('\n').slice(-30).join('\n');
-            pData.stderr = (logs.stderr || '').split('\n').slice(-30).join('\n');
-          } catch { }
-        }
-        report.push(pData);
-
-        if (isNuclear && (p.status === 'running' || p.status === 'starting')) {
+        if (isNuclear) {
           try {
             await p.kill();
             killed.push(p.id);
           } catch { }
+          continue; // Don't report killed ones in nuclear mode
+        }
+
+        // Only report gateway-relevant or non-trivial processes
+        if (isGateway || !isCli) {
+          const pData: any = {
+            id: p.id,
+            command: p.command,
+            status: p.status,
+            exitCode: p.exitCode
+          };
+
+          if (p.status === 'running' || p.status === 'starting' || p.status === 'failed' || p.status === 'completed') {
+            try {
+              const logs = await p.getLogs();
+              pData.stdout = (logs.stdout || '').split('\n').slice(-30).join('\n');
+              pData.stderr = (logs.stderr || '').split('\n').slice(-30).join('\n');
+            } catch { }
+          }
+          report.push(pData);
         }
       }
 
@@ -275,9 +280,9 @@ app.use('*', async (c, next) => {
     } catch (e) {
       return c.text('Rescue operation failed: ' + (e instanceof Error ? e.message : String(e)));
     }
+  } else {
+    await next();
   }
-
-  await next();
 });
 
 // Cleanup route moved to middleware for guaranteed priority.
