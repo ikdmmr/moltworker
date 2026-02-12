@@ -14,6 +14,14 @@ echo "Starting boot sequence (v17)..."
 # SINGLETON LOCK (Prevent duplicate start scripts)
 # ============================================================
 LOCK_FILE="/tmp/start-openclaw.lock"
+
+if [ "$RESCUE_FORCE" = "true" ]; then
+    echo "RESCUE_FORCE detected: removing old lock/stale processes..."
+    rm -f "$LOCK_FILE"
+    pkill -9 -f "openclaw" || true
+    sleep 1
+fi
+
 if [ -f "$LOCK_FILE" ]; then
     PID=$(cat "$LOCK_FILE" 2>/dev/null)
     if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
@@ -302,14 +310,9 @@ console.log('Configuration patched successfully');
 EOFPATCH
 
 # ============================================================
-# DOCTOR (Ensures config is valid before starting)
-# ============================================================
-echo "Running system check..."
-openclaw doctor --fix || true
-
-# ============================================================
 # START GATEWAY
 # ============================================================
+echo "System check skipped (doctor hang identified). Jumping to gateway start..."
 # FORCE PAIRING MODE: Unset token to ensure we fall into pairing logic
 unset OPENCLAW_GATEWAY_TOKEN
 
