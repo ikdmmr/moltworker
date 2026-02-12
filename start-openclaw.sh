@@ -18,8 +18,9 @@ LOCK_FILE="/tmp/start-openclaw.lock"
 if [ "$RESCUE_FORCE" = "true" ]; then
     echo "RESCUE_FORCE detected: removing old lock and cleaning up OTHER processes..."
     rm -f "$LOCK_FILE"
-    # Kill other openclaw processes but exclude this script's PID
-    pgrep -f "openclaw" | grep -v "^$$$" | xargs kill -9 2>/dev/null || true
+    # Kill other openclaw processes but exclude this script's PID ($$)
+    # Fixed typo: using -vx for exact match to avoid self-kill
+    pgrep -f "openclaw" | grep -vx "$$" | xargs kill -9 2>/dev/null || true
     sleep 1
 fi
 
